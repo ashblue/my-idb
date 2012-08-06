@@ -3,6 +3,7 @@
  * useful for generating random numbers and simplifying other
  * complex logic.
  * @link https://developer.mozilla.org/en-US/docs/IndexedDB/Using_IndexedDB
+ * @link http://www.w3.org/TR/IndexedDB/
  * @author Ash Blue ash@blueashes.com
 */
 
@@ -15,13 +16,27 @@ var db;
     /** @type {object} Cached instance of a successful DB response */
     _db = null;
 
+    SELF = null;
+
     db = {
         init: function () {
+            if (SELF !== null) {
+                return;
+            }
+
+            SELF = this;
+
             // This will improve our code to be more readable and shorter
             window.indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
 
             this.testDB(window.indexedDB);
 
+            this.requestDB(function () {
+                SELF.configureDB();
+            });
+        },
+
+        requestDB: function (callback) {
             // Now we can open our database
             _request = window.indexedDB.open("MyTestDatabase");
 
@@ -35,7 +50,17 @@ var db;
                 console.info('DB setup correctly');
 
                 // Store the retrieved database result when its ready
-                _db = _request.response;
+                _db = _request.result;
+
+                callback();
+            };
+        },
+
+        configureDB: function () {
+            console.log(_db);
+
+            _db.onerror = function (e) {
+                console.error('Database error: ' + e.target.errorCode);
             };
         },
 
