@@ -26,19 +26,24 @@ var db;
 
             SELF = this;
 
-            // This will improve our code to be more readable and shorter
+            // Probebly set indexedDB for all browsers
             window.indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
 
+            // Verify IndexedDB works in the current browser
             this.testDB(window.indexedDB);
-
-            this.requestDB(function () {
-                SELF.configureDB();
-            });
         },
 
-        requestDB: function (callback) {
-            // Now we can open our database
-            _request = window.indexedDB.open("Testas", 2); // (dbName, version)
+        /**
+         * @type {string} name Name of the database to be opened.
+         * @type {number} versoin Version of the database to use.
+         * @type {function} writeData Logic executed after the database is retrieved.
+         * Must make use of the dbWriter object.
+         * @todo Make sure writeData's dbWriter's object is in a proper scope. Might need
+         * to be a private var.
+         */
+        getDB: function (name, version, writeData) {
+            // Open the database
+            _request = window.indexedDB.open(name, version); // (dbName, version)
 
             // Setup error handeling
             _request.onerror = function () {
@@ -50,19 +55,18 @@ var db;
                 // Shim for browsers using the old implementation
                 if (SELF.hasSetVersion(e)) {
                     var setVer = e.target.result.setVersion(1);
-                    setVer.onsuccess = SELF.writeData;
+                    setVer.onsuccess = writeData;
                 };
 
                 console.info('DB setup correctly');
 
                 // Store the retrieved database result when its ready
                 _db = _request.result;
-
-                callback();
+                SELF.configureDB();
             };
 
-            // Only place you can actually edit the DB
-            _request.onupgradeneeded = this.writeData;
+            // Setup upgrade logic
+            _request.onupgradeneeded = writeData;
         },
 
         // Detects if the browser supports the old draft of IndexedDB
@@ -82,24 +86,33 @@ var db;
         /**
          * Needs extra logic to make sure it isn't trying to overwrite or re-create things
          */
-        writeData: function (e) {
+        getDBWriter: function (e) {
             // If the DB is not set, we need to pull from the DB target immediately, doubles as a shim for old browsers
-            var dbWriter = _db || e.target.result;
+            return _db || e.target.result;
+        },
 
-            var customerData = [
-                { ssn: '444-44-4444', name: 'Bill', age: 35, email: 'mailto:bill@company.com' },
-                { ssn: '555-55-5555', name: 'Donna', age: 32, email: 'mailto:donna@home.org' }
-            ];
+        setDBStructure: function (data, e) {
+            // Set variables used outside of the loop here
+            var dbWriter = this.getDBWriter(e),
+            tableStore,
+            i,
+            index,
+            line;
 
-            var table = dbWriter.createObjectStore('customers', { keyPath: 'ssn' });
-            table.createIndex('name', 'name', { unique: false });
-            table.createIndex('email', 'email', { unique: true });
+            // Get all the tables and process each individually
+            for (i = data.length; i--;) {
+                // Create the table
+                tableStore = dbWriter.createObjectStore(data[i].table, { keyPath: data[i].keyPath });
 
-            for (var i in customerData) {
-                table.add(customerData[i]);
+                // Create any necessary indexes
+                for (index = data[i].index.length; index--;) {
+                    tableStore.createIndex(data[i].index[index].name, { unique: data[i].index[index].unique });
+                }
+
+                for (line = data[i].data.length; line--;) {
+                    tableStore.add(data[i].data[line]);
+                }
             }
-
-            console.info('onupgradeneeded event fired');
         },
 
         testDB: function (dbData) {
