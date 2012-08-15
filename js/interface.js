@@ -4,6 +4,7 @@
  * complex logic.
  * @link https://developer.mozilla.org/en-US/docs/IndexedDB/Using_IndexedDB
  * @link http://www.w3.org/TR/IndexedDB/
+ * @todo Still needs upgrade logic
  * @author Ash Blue ash@blueashes.com
 */
 
@@ -54,9 +55,12 @@ var db;
             _request.onsuccess = function (e) {
                 // Shim for browsers using the old implementation
                 if (SELF.hasSetVersion(e)) {
-                    var setVer = e.target.result.setVersion(1);
-                    setVer.onsuccess = function(e) {
-                        SELF.setDBStructure(writeData, e);
+                    var setVer = e.target.result.setVersion(version);
+                    setVer.onsuccess = function (e) {
+                        console.log(typeof e.target.result.db.version);
+                        if (parseInt(e.target.result.db.version, 10) !== version) {
+                            SELF.setDBStructure(writeData, e);
+                        }
                     };
                 }
 
@@ -102,7 +106,8 @@ var db;
             i,
             index,
             line,
-            unique;
+            unique,
+            indexString;
 
             // Get all the tables and process each individually
             for (i = data.length; i--;) {
@@ -111,11 +116,12 @@ var db;
                 tableStore = dbWriter.createObjectStore(data[i].table, { keyPath: data[i].keyPath });
 
                 // Create any necessary indexes
-                for (index = data[i].index.length; index--;) {
-                    unique = data[i].index[index].unique || false;
-                    console.log(data[i].index[index].name);
-                    tableStore.createIndex('name', { unique: unique });
-                    //tableStore.createIndex(data[i].index[index].name, { unique: unique });
+                if (data[i].index) {
+                    for (index = data[i].index.length; index--;) {
+                        unique = data[i].index[index].unique || false;
+                        indexString = data[i].index[index].name;
+                        tableStore.createIndex(indexString, indexString, { unique: unique });
+                    }
                 }
 
                 for (line = data[i].data.length; line--;) {

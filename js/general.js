@@ -1,7 +1,7 @@
 console.log(db);
 
 db.init();
-db.getDB('fdsa', 1, defaultDB);
+db.getDB('qwertya', 1, defaultDB);
 
 //db.getDB('testDB', 1, function (e) {
 //    var dbWriter = db.getDBWriter(e);

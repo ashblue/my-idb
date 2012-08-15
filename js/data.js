@@ -16,6 +16,7 @@ var defaultDB = [
     },
     {
         table: 'stats',
+        keyPath: 'shots',
         data: [
             {
                 minionKills: 0,
@@ -32,9 +33,16 @@ var defaultDB = [
     {
         table: 'achievements',
         keyPath: 'name',
+        index: [
+            {
+                name: 'id',
+                unique: true
+            }
+        ],
         data: [
             {
                 name: 'asdf',
+                id: 1,
                 unlocked: false
             }
         ]
