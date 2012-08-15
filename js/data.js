@@ -8,7 +8,7 @@ var defaultDB = [
         keyPath: 'name',
         data: [
             {
-                name: null,
+                name: '',
                 fullscreen: false, // Enable fullscreen mode automatically if possible
                 particles: true
             }

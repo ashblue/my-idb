@@ -57,7 +57,6 @@ var db;
                 if (SELF.hasSetVersion(e)) {
                     var setVer = e.target.result.setVersion(version);
                     setVer.onsuccess = function (e) {
-                        console.log(typeof e.target.result.db.version);
                         if (parseInt(e.target.result.db.version, 10) !== version) {
                             SELF.setDBStructure(writeData, e);
                         }
@@ -72,14 +71,18 @@ var db;
             };
 
             // Setup upgrade logic
-            _request.onupgradeneeded = function(e) {
+            _request.onupgradeneeded = function (e) {
                 SELF.setDBStructure(writeData, e);
             };
         },
 
-        // Detects if the browser supports the old draft of IndexedDB
+        /**
+         * Detects if the IndexedDB implementation uses setVersion
+         */
         hasSetVersion: function (e) {
-            return e.target.result.__proto__.hasOwnProperty('setVersion');
+            return Object.
+                getPrototypeOf(e.target.result).
+                hasOwnProperty('setVersion');
         },
 
         configureDB: function () {
@@ -92,27 +95,45 @@ var db;
         },
 
         /**
-         * Needs extra logic to make sure it isn't trying to overwrite or re-create things
+         * Provides a cross-browser database writing solution that works for
+         * older and newer implementations of IndexedDB
          */
         getDBWriter: function (e) {
             // If the DB is not set, we need to pull from the DB target immediately, doubles as a shim for old browsers
             return _db || e.target.result;
         },
 
+        /**
+         * Allows the user to create a database structure from JSON data.
+         * @param {object} data JSON data to be turned into a database
+         * @param {event} e Database transaction event
+         * @example
+         * var dbData = {
+         *     table: 'player',
+         *     keyPath: 'name',
+         *     data: [
+         *         {
+         *              name: null,
+         *              fullscreen: false,
+         *              particles: true
+         *         }
+         *     ]
+         * };
+         */
         setDBStructure: function (data, e) {
             // Set variables used outside of the loop here
             var dbWriter = this.getDBWriter(e),
-            tableStore,
-            i,
-            index,
-            line,
-            unique,
-            indexString;
+                tableStore,
+                i,
+                index,
+                line,
+                insertData,
+                unique,
+                indexString;
 
             // Get all the tables and process each individually
             for (i = data.length; i--;) {
                 // Create the table
-                console.log(data[i].table);
                 tableStore = dbWriter.createObjectStore(data[i].table, { keyPath: data[i].keyPath });
 
                 // Create any necessary indexes
@@ -125,22 +146,38 @@ var db;
                 }
 
                 for (line = data[i].data.length; line--;) {
-                    tableStore.add(data[i].data[line]);
+                    insertData = data[i].data[line];
+                    tableStore.add(insertData);
                 }
             }
+        },
 
-            //var customerData = [
-            //    { ssn: '444-44-4444', name: 'Bill', age: 35, email: 'mailto:bill@company.com' },
-            //    { ssn: '555-55-5555', name: 'Donna', age: 32, email: 'mailto:donna@home.org' }
-            //];
-            //
-            //var table = dbWriter.createObjectStore('customers', { keyPath: 'ssn' });
-            //table.createIndex('name', 'name', { unique: false });
-            //table.createIndex('email', 'email', { unique: true });
-            //
-            //for (var i in customerData) {
-            //    table.add(customerData[i]);
-            //}
+        /**
+         * Get data from the database normally.
+         */
+        getData: function (table, keyPath) {
+
+        },
+
+        /**
+         * Get all the data from a single table using a cursor.
+         */
+        getAllData: function (table, callback) {
+
+        },
+
+        /**
+         * Add new data to the database for specific file.
+         */
+        setNewData: function (table, data) {
+
+        },
+
+        /**
+         * Modify an existing line of data in a table.
+         */
+        setData: function (table, data) {
+
         },
 
         testDB: function (dbData) {
