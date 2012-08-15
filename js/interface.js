@@ -55,8 +55,10 @@ var db;
                 // Shim for browsers using the old implementation
                 if (SELF.hasSetVersion(e)) {
                     var setVer = e.target.result.setVersion(1);
-                    setVer.onsuccess = writeData;
-                };
+                    setVer.onsuccess = function(e) {
+                        SELF.setDBStructure(writeData, e);
+                    };
+                }
 
                 console.info('DB setup correctly');
 
@@ -66,7 +68,9 @@ var db;
             };
 
             // Setup upgrade logic
-            _request.onupgradeneeded = writeData;
+            _request.onupgradeneeded = function(e) {
+                SELF.setDBStructure(writeData, e);
+            };
         },
 
         // Detects if the browser supports the old draft of IndexedDB
@@ -97,22 +101,40 @@ var db;
             tableStore,
             i,
             index,
-            line;
+            line,
+            unique;
 
             // Get all the tables and process each individually
             for (i = data.length; i--;) {
                 // Create the table
+                console.log(data[i].table);
                 tableStore = dbWriter.createObjectStore(data[i].table, { keyPath: data[i].keyPath });
 
                 // Create any necessary indexes
                 for (index = data[i].index.length; index--;) {
-                    tableStore.createIndex(data[i].index[index].name, { unique: data[i].index[index].unique });
+                    unique = data[i].index[index].unique || false;
+                    console.log(data[i].index[index].name);
+                    tableStore.createIndex('name', { unique: unique });
+                    //tableStore.createIndex(data[i].index[index].name, { unique: unique });
                 }
 
                 for (line = data[i].data.length; line--;) {
                     tableStore.add(data[i].data[line]);
                 }
             }
+
+            //var customerData = [
+            //    { ssn: '444-44-4444', name: 'Bill', age: 35, email: 'mailto:bill@company.com' },
+            //    { ssn: '555-55-5555', name: 'Donna', age: 32, email: 'mailto:donna@home.org' }
+            //];
+            //
+            //var table = dbWriter.createObjectStore('customers', { keyPath: 'ssn' });
+            //table.createIndex('name', 'name', { unique: false });
+            //table.createIndex('email', 'email', { unique: true });
+            //
+            //for (var i in customerData) {
+            //    table.add(customerData[i]);
+            //}
         },
 
         testDB: function (dbData) {
