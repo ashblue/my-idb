@@ -1,6 +1,5 @@
 console.log(db);
 
-db.init();
 db.getDB('qwertya', 1, defaultDB);
 
 //db.getDB('testDB', 1, function (e) {

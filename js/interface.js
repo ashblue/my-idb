@@ -11,71 +11,19 @@
 var db;
 
 (function () {
+    /** @type {object} Reference to the db singleton */
+    var SELF = null;
+
+    /** @type {boolean} Whether or not to enable the debugger */
+    var _debug = true;
+
     /** @type {object} Database request */
     var _request = null;
 
     /** @type {object} Cached instance of a successful DB response */
     var _db = null;
 
-    SELF = null;
-
-    db = {
-        init: function () {
-            if (typeof SELF !== 'object') {
-                return;
-            }
-
-            SELF = this;
-
-            // Probebly set indexedDB for all browsers
-            window.indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
-
-            // Verify IndexedDB works in the current browser
-            this.testDB(window.indexedDB);
-        },
-
-        /**
-         * @type {string} name Name of the database to be opened.
-         * @type {number} versoin Version of the database to use.
-         * @type {function} writeData Logic executed after the database is retrieved.
-         * Must make use of the dbWriter object.
-         * @todo Make sure writeData's dbWriter's object is in a proper scope. Might need
-         * to be a private var.
-         */
-        getDB: function (name, version, writeData) {
-            // Open the database
-            _request = window.indexedDB.open(name, version); // (dbName, version)
-
-            // Setup error handeling
-            _request.onerror = function () {
-                throw new Error('db crashed during initialization.');
-            };
-
-            // Setup success handeling
-            _request.onsuccess = function (e) {
-                // Shim for browsers using the old implementation
-                if (SELF.hasSetVersion(e)) {
-                    var setVer = e.target.result.setVersion(version);
-                    setVer.onsuccess = function (e) {
-                        if (parseInt(e.target.result.db.version, 10) !== version) {
-                            SELF.setDBStructure(writeData, e);
-                        }
-                    };
-                }
-
-                console.info('DB setup correctly');
-
-                // Store the retrieved database result when its ready
-                _db = _request.result;
-                SELF.configureDB();
-            };
-
-            // Setup upgrade logic
-            _request.onupgradeneeded = function (e) {
-                SELF.setDBStructure(writeData, e);
-            };
-        },
-
+    var _private = {
         /**
          * Detects if the IndexedDB implementation uses setVersion
          */
@@ -85,8 +33,13 @@ var db;
                 hasOwnProperty('setVersion');
         },
 
+        /**
+         * Sets up error and success handles for the current databse.
+         * @todo Add success handler
+         * @todo Make it a universal method that adds a callback to success and failure for a given object
+         */
         configureDB: function () {
-            console.log(_db);
+            if (_debug) console.log(_db);
 
             // Setup error handeling
             _db.onerror = function (e) {
@@ -122,9 +75,8 @@ var db;
          */
         setDBStructure: function (data, e) {
             // Set variables used outside of the loop here
-            var dbWriter = this.getDBWriter(e),
+            var dbWriter = _private.getDBWriter(e),
                 tableStore,
-                i,
                 index,
                 line,
                 insertData,
@@ -132,7 +84,7 @@ var db;
                 indexString;
 
             // Get all the tables and process each individually
-            for (i = data.length; i--;) {
+            for (var i = data.length; i--;) {
                 // Create the table
                 tableStore = dbWriter.createObjectStore(data[i].table, { keyPath: data[i].keyPath });
 
@@ -150,6 +102,66 @@ var db;
                     tableStore.add(insertData);
                 }
             }
+        }
+    };
+
+    db = {
+        init: function () {
+            if (typeof SELF !== 'object') {
+                return;
+            }
+
+            SELF = this;
+
+            // Probebly set indexedDB for all browsers
+            window.indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
+
+            // Verify IndexedDB works in the current browser
+            this.testDB(window.indexedDB);
+        },
+
+        /**
+         * @type {string} name Name of the database to be opened.
+         * @type {number} versoin Version of the database to use.
+         * @type {function} writeData Logic executed after the database is retrieved.
+         * Must make use of the dbWriter object.
+         * @todo Make sure writeData's dbWriter's object is in a proper scope. Might need
+         * to be a private var.
+         */
+        getDB: function (name, version, writeData) {
+            this.init();
+
+            // Open the database
+            _request = window.indexedDB.open(name, version); // (dbName, version)
+
+            // Setup error handeling
+            _request.onerror = function () {
+                throw new Error('db crashed during initialization.');
+            };
+
+            // Setup success handeling
+            _request.onsuccess = function (e) {
+                // Shim for browsers using the old implementation
+                if (_private.hasSetVersion(e)) {
+                    var setVer = e.target.result.setVersion(version);
+                    setVer.onsuccess = function (e) {
+                        if (parseInt(e.target.result.db.version, 10) !== version) {
+                            SELF.setDBStructure(writeData, e);
+                        }
+                    };
+                }
+
+                console.info('DB setup correctly');
+
+                // Store the retrieved database result when its ready
+                _db = _request.result;
+                _private.configureDB();
+            };
+
+            // Setup upgrade logic
+            _request.onupgradeneeded = function (e) {
+                SELF.setDBStructure(writeData, e);
+            };
         },
 
         /**

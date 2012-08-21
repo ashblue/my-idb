@@ -1,8 +1,4 @@
 var defaultDB = [
-    /**
-     * First level declares the table
-     * @todo Needs a key property
-     */
     {
         table: 'player',
         keyPath: 'name',
