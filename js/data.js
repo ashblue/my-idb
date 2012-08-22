@@ -1,34 +1,63 @@
 var defaultDB = [
     {
         table: 'player',
-        keyPath: 'name',
+        keyPath: 'info',
         data: [
             {
-                name: '',
-                fullscreen: false, // Enable fullscreen mode automatically if possible
-                particles: true
+                info: 'name',
+                data: ''
+            },
+            {
+                info: 'fullscreen',
+                data: false
+            },
+            {
+                info: 'particles',
+                data: true
             }
         ]
     },
     {
         table: 'stats',
-        keyPath: 'shots',
+        keyPath: 'info',
         data: [
             {
-                minionKills: 0,
-                bossKills: 0,
-                bombs: 0,
-                shots: 0,
-                playtime: 0,
-                lvsComplete: 0,
-                deaths: 0,
-                gameovers: 0
+                info: 'minion kills',
+                data: 0
+            },
+            {
+                info: 'boss kills',
+                data: 0
+            },
+            {
+                info: 'special attacks used',
+                data: 0
+            },
+            {
+                info: 'shots',
+                data: 0
+            },
+            {
+                info: 'playtime',
+                data: 0
+            },
+            {
+                info: 'levels complete',
+                data: 0
+            },
+            {
+                info: 'deaths',
+                data: 0
+            },
+            {
+                info: 'game overs',
+                data: 0
             }
         ]
     },
     {
         table: 'achievements',
-        keyPath: 'name',
+        keyPath: 'id',
         index: [
             {
                 name: 'id',

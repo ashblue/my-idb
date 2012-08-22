@@ -5,6 +5,7 @@
  * @link https://developer.mozilla.org/en-US/docs/IndexedDB/Using_IndexedDB
  * @link http://www.w3.org/TR/IndexedDB/
  * @todo Still needs upgrade logic
+ * @todo Still needs the ability to set existing data
  * @author Ash Blue ash@blueashes.com
 */
 
@@ -22,6 +23,18 @@ var db;
 
     /** @type {object} Cached instance of a successful DB response */
     var _db = null;
+
+    /** @type {object} Holds a cache of the database. */
+    var _cache = null;
+
+    /** @type {array} Cached version of all the write data. */
+    var _writeData = null;
+
+    /** @type {timer} Set timeout that checks for the database to be ready. */
+    var _updateCheck = null;
+
+    /** @type {boolean} Sets to true only if a database upgrade occurs */
+    var _ready = null;
 
     var _private = {
         /**
@@ -74,6 +87,8 @@ var db;
          * };
          */
         setDBStructure: function (data, e) {
+            console.log('database set');
+
             // Set variables used outside of the loop here
             var dbWriter = _private.getDBWriter(e),
                 tableStore,
@@ -102,10 +117,56 @@ var db;
                     tableStore.add(insertData);
                 }
             }
+
+            _ready = true;
+        },
+
+        /**
+         * Get data from the database with a cursor for a specific table.
+         */
+        getTable: function (table, callback) {
+            var objectStore = _db.transaction(table).objectStore(table);
+
+            return objectStore.openCursor().onsuccess = callback;
+        },
+
+        /**
+         * Rebuilds the cache from scratch
+         */
+        setCache: function() {
+            _cache = {};
+
+            // Loop through all of the data items
+            for (var i = _writeData.length; i--;) {
+                var table = _writeData[i].table;
+                _cache[table] = [];
+
+                // getTable for each with a callback that appends to the cache
+                _private.getTable(table, function(e) {
+                    var cursor = e.target.result;
+                    if (cursor) {
+                        _cache[cursor.source.name].push(cursor.value);
+                        cursor.continue();
+                    }
+                });
+            }
+        },
+
+        /**
+         * Tests for indexedDB support
+         * @todo Create a callback reference in the master object
+         */
+        testDB: function (dbData) {
+            if (dbData === undefined) {
+                console.error('No Indexed DB support.');
+            }
         }
     };
 
     db = {
+        /**
+         * @todo Should be private, only fires once when getDB is called
+         */
         init: function () {
             if (typeof SELF !== 'object') {
                 return;
@@ -117,7 +178,7 @@ var db;
             window.indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
 
             // Verify IndexedDB works in the current browser
-            this.testDB(window.indexedDB);
+            _private.testDB(window.indexedDB);
         },
 
         /**
@@ -125,11 +186,13 @@ var db;
          * @type {number} versoin Version of the database to use.
          * @type {function} writeData Logic executed after the database is retrieved.
          * Must make use of the dbWriter object.
+         * @returns {undefined} Don't return anything because the database might not be ready yet
          * @todo Make sure writeData's dbWriter's object is in a proper scope. Might need
          * to be a private var.
          */
         getDB: function (name, version, writeData) {
             this.init();
+            _writeData = writeData;
 
             // Open the database
             _request = window.indexedDB.open(name, version); // (dbName, version)
@@ -141,61 +204,101 @@ var db;
 
             // Setup success handeling
             _request.onsuccess = function (e) {
+                // Set the current version
+                var currentVersion = parseInt(e.target.result.version, 10);
+
                 // Shim for browsers using the old implementation
                 if (_private.hasSetVersion(e)) {
+                    // On an upgrade do this!
                     var setVer = e.target.result.setVersion(version);
+
+                    // Logic on successful update
                     setVer.onsuccess = function (e) {
-                        if (parseInt(e.target.result.db.version, 10) !== version) {
-                            SELF.setDBStructure(writeData, e);
+                        console.log(parseInt(e.target.result.db.version, 10), currentVersion);
+                        if (parseInt(e.target.result.db.version, 10) > currentVersion ||
+                            isNaN(currentVersion)) {
+                            console.log('upgrade needed');
+                            _private.setDBStructure(writeData, e);
                         }
                     };
                 }
 
-                console.info('DB setup correctly');
-
                 // Store the retrieved database result when its ready
                 _db = _request.result;
                 _private.configureDB();
+
+                // Set the database cache if the version isn't changing
+                if (currentVersion === version) {
+                    _private.setCache();
+                // Database is still updating, check back later
+                } else {
+                    var checkStatus = function() {
+                        if (_ready) {
+                            _private.setCache();
+                        } else {
+                            _updateCheck = setTimeout(checkStatus, 100);
+                        }
+                    };
+                    _updateCheck = setTimeout(checkStatus, 100);
+                }
             };
 
             // Setup upgrade logic
             _request.onupgradeneeded = function (e) {
-                SELF.setDBStructure(writeData, e);
+                console.log('upgrade needed');
+                _private.setDBStructure(writeData, e);
             };
+
+            return;
         },
 
         /**
-         * Get data from the database normally.
+         * Accesses the cache and returns the array of data for a table
+         * @param {string} table Table to access
+         * @returns {array} Each line in the array reprents a line in the database
          */
-        getData: function (table, keyPath) {
-
+        getDataTable: function(table) {
+            return _cache[table];
         },
 
         /**
-         * Get all the data from a single table using a cursor.
+         * Gets and retuns a specific line of a table via a key with a value from
+         * the cache.
+         * @returns {object} Only returns one line or an empty object
+         * @todo Untested
          */
-        getAllData: function (table, callback) {
+        getDataTableKey: function(table, key, value) {
+            var tableData = _cache[table];
 
+            for (var i = tableData.length; i--;) {
+                if (tableData[i][key] === value) {
+                    return tableData[i];
+                }
+            }
+
+            return {};
         },
 
         /**
-         * Add new data to the database for specific file.
+         * Used to upgrade the database
+         * @returns {boolean} True if it exists
+         * @todo Make private
          */
-        setNewData: function (table, data) {
+        getDataExistence: function(table, keyPathVal) {
 
         },
 
         /**
          * Modify an existing line of data in a table.
+         * @todo Untested, might not work
          */
-        setData: function (table, data) {
+        setData: function (table, data, key) {
+            // Open the specific table in question
+            var transaction = db.transaction([table], IDBTransaction.readwrite);
+            var store = transaction.objectStore(table);
+            store.put(data, key);
 
-        },
-
-        testDB: function (dbData) {
-            if (dbData === undefined) {
-                throw new Error('No Indexed DB support.');
-            }
+            return this;
         }
     };
 }());

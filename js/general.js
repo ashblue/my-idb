@@ -1,6 +1,6 @@
 console.log(db);
 
-db.getDB('qwertya', 1, defaultDB);
+db.getDB('myDBaddasdfa', 1, defaultDB);
 
 //db.getDB('testDB', 1, function (e) {
 //    var dbWriter = db.getDBWriter(e);
