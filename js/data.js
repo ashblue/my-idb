@@ -2,10 +2,16 @@ var defaultDB = [
     {
         table: 'player',
         keyPath: 'info',
+        index: [
+            {
+                name: 'info',
+                unique: true
+            }
+        ],
         data: [
             {
                 info: 'name',
-                data: ''
+                data: 'asdf'
             },
             {
                 info: 'fullscreen',
@@ -20,6 +26,12 @@ var defaultDB = [
     {
         table: 'stats',
         keyPath: 'info',
+        index: [
+            {
+                name: 'info',
+                unique: true
+            }
+        ],
         data: [
             {
                 info: 'minion kills',

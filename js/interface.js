@@ -4,8 +4,8 @@
  * complex logic.
  * @link https://developer.mozilla.org/en-US/docs/IndexedDB/Using_IndexedDB
  * @link http://www.w3.org/TR/IndexedDB/
- * @todo Still needs upgrade logic
- * @todo Still needs the ability to set existing data
+ * @todo Still need to figure out how upgrade logic is going to work with the existing JSON data
+ * @todo Move over to a NodeJS build for requireJS, getting too big for one file
  * @author Ash Blue ash@blueashes.com
 */
 
@@ -96,25 +96,34 @@ var db;
                 line,
                 insertData,
                 unique,
-                indexString;
+                indexString,
+                objectStore;
 
             // Get all the tables and process each individually
             for (var i = data.length; i--;) {
-                // Create the table
-                tableStore = dbWriter.createObjectStore(data[i].table, { keyPath: data[i].keyPath });
+                // Check if a database exists, run first time setup
+                try {
+                    console.log('first time db creation');
+                    // Create the table
+                    tableStore = dbWriter.createObjectStore(data[i].table, { keyPath: data[i].keyPath });
 
-                // Create any necessary indexes
-                if (data[i].index) {
-                    for (index = data[i].index.length; index--;) {
-                        unique = data[i].index[index].unique || false;
-                        indexString = data[i].index[index].name;
-                        tableStore.createIndex(indexString, indexString, { unique: unique });
+                    // Create any necessary indexes
+                    if (data[i].index) {
+                        for (index = data[i].index.length; index--;) {
+                            unique = data[i].index[index].unique || false;
+                            indexString = data[i].index[index].name;
+                            tableStore.createIndex(indexString, indexString, { unique: unique });
+                        }
                     }
-                }
 
-                for (line = data[i].data.length; line--;) {
-                    insertData = data[i].data[line];
-                    tableStore.add(insertData);
+                    for (line = data[i].data.length; line--;) {
+                        insertData = data[i].data[line];
+                        tableStore.add(insertData);
+                    }
+
+                // Run a database upgrade from a previous version
+                } catch (event) {
+                    console.log('Updating DB for the second time, currently no logic present to handle this. See http://stackoverflow.com/questions/12084215/indexeddb-overwrites-values-during-upgrade.');
                 }
             }
 
@@ -176,6 +185,7 @@ var db;
 
             // Probebly set indexedDB for all browsers
             window.indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
+            window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction;
 
             // Verify IndexedDB works in the current browser
             _private.testDB(window.indexedDB);
@@ -193,6 +203,8 @@ var db;
         getDB: function (name, version, writeData) {
             this.init();
             _writeData = writeData;
+            _name = name;
+            _version = version;
 
             // Open the database
             _request = window.indexedDB.open(name, version); // (dbName, version)
@@ -262,7 +274,7 @@ var db;
         },
 
         /**
-         * Gets and retuns a specific line of a table via a key with a value from
+         * Gets and returns a specific line of a table via a key with a value from
          * the cache.
          * @returns {object} Only returns one line or an empty object
          * @todo Untested
@@ -280,23 +292,12 @@ var db;
         },
 
         /**
-         * Used to upgrade the database
-         * @returns {boolean} True if it exists
-         * @todo Make private
-         */
-        getDataExistence: function(table, keyPathVal) {
-
-        },
-
-        /**
          * Modify an existing line of data in a table.
-         * @todo Untested, might not work
          */
-        setData: function (table, data, key) {
-            // Open the specific table in question
-            var transaction = db.transaction([table], IDBTransaction.readwrite);
-            var store = transaction.objectStore(table);
-            store.put(data, key);
+        setData: function (table, data) {
+            var dbTransaction = _db.transaction([table], 'readwrite');
+            var oStore = dbTransaction.objectStore(table);
+            oStore.put(data);
 
             return this;
         }
