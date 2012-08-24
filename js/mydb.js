@@ -1,5 +1,4 @@
 /**
- * @todo finish set method
  * @todo configure upgrade logic
  */
 define(
@@ -64,6 +63,9 @@ define(
                 return this;
             },
 
+            /**
+             * Overwrite the callback that fires if indexedDB fails to load
+             */
             setNoDBCallback: function (callback) {
                 _private.loadFailure = callback;
 
@@ -89,10 +91,22 @@ define(
              */
             getTableLine: function (table, key, value) {
                 return getDB.getDataTableKey(table, key, value);
+            },
+
+            /**
+             * Modify an existing line of data in a table.
+             * @param {string} table Name of the table such as 'player'
+             * @param {object} data Object to write, if you wanted to set a
+             * 'name' key it might look like {name: 'joe'}
+             * @returns {self}
+             */
+            setTableLine: function (table, key, keyName, value) {
+                getDB.setData(table, key, keyName, value);
+                return this;
             }
         };
 
         window.myDB.init();
-        window.myDB.setDB('test', 1, testData);
+        window.myDB.setDB('atest', 1, testData);
     }
 );

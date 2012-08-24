@@ -46,7 +46,6 @@ define(
              * Creates the database structure from the init data
              */
             setStructure: function (e) {
-                console.log('structure setting');
                 var tableStore, index, line, unique, indexString;
                 for (var i = _writeData.length; i--;) {
                     // Create the table
@@ -226,7 +225,7 @@ define(
                 // Update the database
                 var dbTransaction = _db.transaction([table], 'readwrite');
                 var oStore = dbTransaction.objectStore(table);
-                oStore.put(data);
+                oStore.put(writeData);
 
                 // Update the cache
                 cache.setCacheLine(table, key, keyName, writeData);
