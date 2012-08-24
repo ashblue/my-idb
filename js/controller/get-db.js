@@ -1,6 +1,9 @@
 define(
-    ['controller/support'],
-    function (support) {
+    [
+        'controller/support',
+        'controller/cache'
+    ],
+    function (support, cache) {
         /** @type {object} Reference to master database object */
         var SELF = null;
 
@@ -22,6 +25,8 @@ define(
         /** @type {object} Record the original request data */
         var _request = null;
 
+        var _writeComplete = false;
+
         var _private = {
             /**
              * Retrieves the data necessary to write to the database
@@ -35,15 +40,6 @@ define(
              */
             requestDB: function () {
                 return window.indexedDB.open(_name, _version);
-            },
-
-            /**
-             * Use a retrieved database to open a transaction for a specific table
-             */
-            getTable: function (table, callback) {
-                //var objectStore = _db.transaction(table).objectStore(table);
-                //
-                //return objectStore.openCursor().onsuccess = callback;
             },
 
             /**
@@ -97,6 +93,8 @@ define(
                 _db.onerror = function (e) {
                     console.error('Database error: ' + e.target.errorCode);
                 };
+
+                _writeComplete = true;
             }
         };
 
@@ -128,7 +126,17 @@ define(
                 // For older browsers that need to upgrade the DB during success
                 support.upgradeDBFix(e, _version, _versionPrev, _events.requestUpgrade);
 
+                // Store the retrieved database result
+                _private.setDB();
 
+                // Set the database cache if the version isn't changing
+                if (_version === _versionPrev) {
+                    cache.setCache(_writeData, SELF);
+
+                // Database is still updating, check back later
+                } else {
+                    cache.setCacheTimer(_writeComplete, _writeData, SELF);
+                }
             }
         };
 
@@ -161,6 +169,67 @@ define(
 
                 // Attach success handeling
                 _request.onsuccess = _events.requestSuccess;
+
+                return this;
+            },
+
+            /**
+             * Use a retrieved database to open a transaction for a specific table
+             */
+            getTable: function (table, callback) {
+                var objectStore = _db.transaction(table).objectStore(table);
+
+                return objectStore.openCursor().onsuccess = callback;
+            },
+
+            /**
+             * Accesses the cache and returns the array of data for a table
+             * @param {string} table Table to access
+             * @returns {array} Each line in the array reprents a line in the database
+             */
+            getDataTable: function(table) {
+                var cacheData = cache.getCache();
+                return cacheData[table];
+            },
+
+            /**
+             * Gets and returns a specific line of a table via a key with a value from
+             * the cache.
+             * @param {string} table Name of the table such as 'player'
+             * @param {string} key Main key for the table, such as 'id'
+             * @param {mixed} value Value you are looking for in a specific key,
+             * for example you might look for a key of 'name' and value of 'Joe'
+             * @returns {object} Only returns one line or an empty object
+             */
+            getDataTableKey: function(table, key, value) {
+                var cacheData = cache.getCache();
+                var tableData = cacheData[table];
+
+                for (var i = tableData.length; i--;) {
+                    if (tableData[i][key] === value) {
+                        return tableData[i];
+                    }
+                }
+
+                return {};
+            },
+
+            /**
+             * Modify an existing line of data in a table.
+             * @param {string} table Name of the table such as 'player'
+             * @param {object} data Object to write, if you wanted to set a
+             * 'name' key it might look like {name: 'joe'}
+             * @returns {self}
+             * @todo Untested
+             */
+            setData: function (table, key, keyName, writeData) {
+                // Update the database
+                var dbTransaction = _db.transaction([table], 'readwrite');
+                var oStore = dbTransaction.objectStore(table);
+                oStore.put(data);
+
+                // Update the cache
+                cache.setCacheLine(table, key, keyName, writeData);
 
                 return this;
             }

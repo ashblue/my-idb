@@ -1,3 +1,7 @@
+/**
+ * @todo finish set method
+ * @todo configure upgrade logic
+ */
 define(
     [
         'controller/support',
@@ -34,12 +38,57 @@ define(
                     .testDb(_private.loadFailure);
             },
 
+            /**
+             * Set and get the database, should only be called once per page load.
+             * @param {string} dbName Name of the database you want to retrieve
+             * @param {number} ver Version of the database you want, newer versions trigger
+             * an upgrade
+             * @param {object} data Data you want to use to create or upgrade
+             * your database, see example for more info
+             * var dbData = {
+             *     table: 'player',
+             *     keyPath: 'name',
+             *     data: [
+             *         {
+             *              name: null,
+             *              fullscreen: false,
+             *              particles: true
+             *         }
+             *     ]
+             * };
+             * @returns {self}
+             */
             setDB: function (dbName, ver, data) {
                 getDB.request(dbName, ver, data);
+
+                return this;
             },
 
-            setNoDBCallback: function () {
+            setNoDBCallback: function (callback) {
+                _private.loadFailure = callback;
 
+                return this;
+            },
+
+            /**
+             * Retrive a specific table
+             * @param {string} table Name of the table you want to get
+             */
+            getTable: function (table) {
+                return getDB.getDataTable(table);
+            },
+
+            /**
+             * Gets and returns a specific line of a table via a key with a value from
+             * the cache.
+             * @param {string} table Name of the table such as 'player'
+             * @param {string} key Main key for the table, such as 'name'
+             * @param {mixed} value Value you are looking for in a specific key,
+             * for example you might look for a key of 'name' and value of 'Joe'
+             * @returns {object} Only returns one line or an empty object
+             */
+            getTableLine: function (table, key, value) {
+                return getDB.getDataTableKey(table, key, value);
             }
         };
 
