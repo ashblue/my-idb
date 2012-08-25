@@ -1,5 +1,5 @@
 /**
- * @todo configure upgrade logic
+ * @example usage window.myDB.setDB('new', 1, yourJSONdata);
  */
 define(
     [
@@ -107,6 +107,5 @@ define(
         };
 
         window.myDB.init();
-        window.myDB.setDB('atest', 1, testData);
     }
 );

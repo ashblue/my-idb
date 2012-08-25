@@ -79,8 +79,56 @@ define(
             /**
              * Logic for upgrading the database if a structure is already in place
              */
-            upgradeStructure: function () {
-                console.info('insert upgrade logic here');
+            upgradeStructure: function (e) {
+                console.log('upgrade fired');
+                var tableStore, index, line, unique, indexString;
+                for (var i = _writeData.length; i--;) {
+                    // Test if the table already exists
+                    try {
+                        tableStore = e.currentTarget.transaction.objectStore(_writeData[i].table);
+
+                        // On success Loop through and run get commands on all the data
+                        for (line = _writeData[i].data.length; line--;) {
+                            var key = _writeData[i].index[0].name;
+                            var getData = tableStore.get(_writeData[i].data[line][key]);
+
+                            // On get success ignore it
+                            getData.onsuccess = (function (e) {
+                                var iCurrent = i;
+                                var lineCurrent = line;
+
+                                return function (e) {
+                                    var result = e.target.result;
+
+                                    if (result !== undefined) {
+                                        return;
+                                    }
+                                    tableStore.add(_writeData[iCurrent].data[lineCurrent]);
+                                };
+                            })();
+                        }
+
+                    // On table retrieval failure create the table and all the attached data
+                    } catch (error) {
+                        tableStore = _private
+                            .getWriter(e)
+                            .createObjectStore(_writeData[i].table, { keyPath: _writeData[i].keyPath });
+
+                        // Create necessary index
+                        if (_writeData[i].index) {
+                            for (index = _writeData[i].index.length; index--;) {
+                                unique = _writeData[i].index[index].unique || false;
+                                indexString = _writeData[i].index[index].name;
+                                tableStore.createIndex(indexString, indexString, { unique: unique });
+                            }
+                        }
+
+                        // Insert lines
+                        for (line = _writeData[i].data.length; line--;) {
+                            tableStore.add(_writeData[i].data[line]);
+                        }
+                    }
+                }
             },
 
             /**
