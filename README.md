@@ -1,4 +1,4 @@
-indexeddb-demo
+My IDB (Indexed Database)
 ==============
 
-A basic demo of IndexedDB and its functionality.
+Docs coming soon.
