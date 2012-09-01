@@ -24,6 +24,7 @@ var server = {
 
         this
             .setFolders()
+            .setCombinedJS('build/js', '/build/all.js')
             .setRoot('index.html');
 
         this.app.listen(8080);
@@ -39,7 +40,8 @@ var server = {
      */
     setFolders: function () {
         this.app.configure(function () {
-            SELF.app.use('/js', SELF.express.static(__dirname + '/js'));
+            SELF.app.use('/build', SELF.express.static(__dirname + '/build'));
+            SELF.app.use('/tests', SELF.express.static(__dirname + '/tests'));
         });
 
         return this;
@@ -56,6 +58,60 @@ var server = {
         });
 
         return this;
+    },
+
+    /**
+     * Dynamically combines and returns a JavaScript file when requested.
+     * @param folder {string} Location of the JavaScript files
+     * @param request {string} Request such as 'engine.js' to the server
+     * @returns {self}
+     */
+    setCombinedJS: function (folder, request) {
+        // Retrieve all files
+        var fileContents = this.fs.readdirSync(folder),
+            filteredContents = [];
+
+        // Verify file data is what you requested
+        fileContents.forEach(function (value) {
+            if (SELF.getString(value, '.js')) {
+                filteredContents.push(value);
+            }
+        });
+
+        //console.log(filteredContents);
+        this.app.get(request, function (req, res) {
+            var compiledJS = '';
+
+            filteredContents.forEach(function (value) {
+                compiledJS += SELF.fs.readFileSync(folder + '/' + value);
+            });
+
+            res.header('Content-Type', 'application/javascript');
+            res.send(compiledJS);
+        });
+
+        return this;
+    },
+
+    /**
+     * Test to discover if the needle(s) are present inside
+     * a string.
+     * @param {string} haystack String you want to search
+     * @param {string} needle Item you're looking for in the haystack
+     * @returns {boolean} True upon discovery, false upon failure.
+     */
+    getString: function (haystack, needle) {
+        if (Array.isArray(needle)) {
+            needle.forEach(function (value) {
+                if (haystack.indexOf(value) !== 1) {
+                    return true;
+                }
+            });
+        } else if (typeof needle === 'string') {
+            return haystack.indexOf(needle) !== -1;
+        }
+
+        return false;
     }
 };
 
