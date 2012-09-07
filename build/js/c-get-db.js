@@ -277,6 +277,15 @@ var myDB = myDB || {};
             myDB.cache.setCacheLine(table, key, keyName, writeData);
 
             return this;
+        },
+
+        setTableLine: function (table, writeData) {
+            // Update the database
+            var dbTransaction = _db.transaction([table], 'readwrite');
+            var oStore = dbTransaction.objectStore(table);
+            oStore.put(writeData);
+
+            return this;
         }
     };
 }(myDB));

@@ -28,6 +28,7 @@ var server = {
             .setRoot('index.html');
 
         this.app.listen(8080);
+        console.log('listening at 127.0.0.1:8080');
 
         return;
     },

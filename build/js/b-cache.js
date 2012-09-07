@@ -4,8 +4,11 @@ var myDB = myDB || {};
     /** @type {object} Reference to master object */
     var SELF = null;
 
-    /** @type {object} Holds a cache of the database. */
+    /** @type {object} Holds a cache of the database */
     var _data = null;
+
+    /** @type {object} Stores key path declarations */
+    var _dataKeyPath = {};
 
     /** @type {function} Storage location for timer */
     var _updateCheck = null;
@@ -25,9 +28,12 @@ var myDB = myDB || {};
             _data = {};
 
             // Loop through all of the data items
+            var writeTotal = 0, writeCount = 1;
             for (var i = writeData.length; i--;) {
                 var table = writeData[i].table;
+                _dataKeyPath[table] = writeData[i].keyPath;
                 _data[table] = [];
+                writeTotal += 1;
 
                 // getTable for each with a callback that appends to the cache
                 db.getTable(table, function(e) {
@@ -35,6 +41,10 @@ var myDB = myDB || {};
                     if (cursor) {
                         _data[cursor.source.name].push(cursor.value);
                         cursor.continue();
+                    } else if (writeTotal === writeCount) {
+                        myDB.setSuccess();
+                    } else if (cursor === null) {
+                        writeCount += 1;
                     }
                 });
             }
@@ -65,6 +75,10 @@ var myDB = myDB || {};
 
         getCache: function () {
             return _data;
+        },
+
+        getKey: function (table) {
+            return _dataKeyPath[table];
         }
     };
 

@@ -85,7 +85,7 @@ var myDB = myDB || {};
      * @returns {object} Only returns one line or an empty object
      * @example myDB.getTableLine('achievements', 'id', 5);
      */
-    getTableLine = function (table, key, value) {
+    myDB.getTableLine = function (table, key, value) {
         return myDB.getDB.getDataTableKey(table, key, value);
     };
 
@@ -98,11 +98,51 @@ var myDB = myDB || {};
      * in the database
      * @returns {self}
      * @example myDB.setTableLine('achievements', 'id', 5, { level: 2, unlocked: true });
+     * @todo Really doesn't work that well, should probably be re-worked
+     * @deprecated Replace with quickReplace
      */
-    setTableLine = function (table, key, keyValue, value) {
+    myDB.setTableLine = function (table, key, keyValue, value) {
         myDB.getDB.setData(table, key, keyValue, value);
         return this;
     };
+
+    /**
+     * Optimized data replacement for the cache and IndexedDB at the same time. Replaces
+     * a specific line in a table with the provided values after finding a match.
+     * @param {string} table Name of the table such as 'achievements'
+     * @param {mixed} keyValue Searches main key for a table and looks for that specific value.
+     * If the key is 'info', you might searched for a value of 'name'
+     * @param {string} replaceName Parameter that should be replaced on the matched line
+     * @param {mixed} replaceNameValue Replace the previous value with the given data
+     * @returns {self}
+     */
+    myDB.quickReplace = function (table, keyValue, replaceName, replaceNameValue) {
+        // Get necessary data
+        var tableLines = myDB.getDB.getDataTable(table);
+        var key = myDB.cache.getKey(table);
+
+        // Loop through values of the cached object checking for the replaceName
+        for (var i = tableLines.length; i--;) {
+            // Replace the value of the discoverd replaceName with replaceNameValue
+            if (tableLines[i][key] !== keyValue) {
+                continue;
+            }
+
+            // Send the current object off to the database for replacement
+            tableLines[i][replaceName] = replaceNameValue;
+            myDB.getDB.setTableLine(table, tableLines[i]);
+
+            // Exit early
+            return this;
+        }
+
+        return this;
+    };
+
+    /**
+     * On successful database retrieval callback
+     */
+    myDB.setSuccess = function() {};
 
     myDB.init();
 
